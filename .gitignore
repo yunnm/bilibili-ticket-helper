@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data
+/data/cache/
+/data/logs/
+
+# Env
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config with secrets
+config.yaml

@@ -1,0 +1,24 @@
+account:
+  cookie: 在此粘贴你的 B站 Cookie
+notify:
+  enabled: false
+polling:
+  backoff_base_ms: 1000
+  backoff_multiplier: 2.0
+  interval_ms: 800
+  max_retries: 3
+  pre_sale_refresh_ms: 3000
+rate_limit:
+  burst: 2
+  cooldown_seconds: 30
+  max_rps: 1.5
+storage:
+  kv_cache_dir: ./data/cache
+  log_dir: ./data/logs
+ticket:
+  count: 1
+  is_select_seat: false
+  item_id: ''
+  screen_id: ''
+  seat_plan_id: ''
+  sku_id: ''

@@ -1,0 +1,10 @@
+# Bilibili 会员购抢票助手 - 依赖清单
+# 注意：本工具仅供个人学习与研究使用，严禁商业牟利
+
+requests>=2.28.0
+pyyaml>=6.0
+qrcode>=7.4
+Pillow>=9.0
+urllib3>=1.26
+flask>=3.0.0
+pyinstaller>=6.0.0

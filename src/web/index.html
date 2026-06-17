@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilibili 会员购抢票助手</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --panel: #1a1d27;
+  --border: #2a2d37;
+  --text: #e1e4eb;
+  --text2: #8b8fa3;
+  --accent: #fb7299;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --blue: #60a5fa;
+  --radius: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+/* ── Top Bar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.topbar .logo {
+  font-size: 18px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px;
+}
+.topbar .logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.topbar .status { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--text2); }
+.topbar .status .badge {
+  padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;
+}
+.badge-logged-in { background: #1a3a24; color: var(--green); }
+.badge-logged-out { background: #3a1a1a; color: var(--red); }
+.badge-running { background: #1a2a3a; color: var(--blue); }
+.badge-stopped { background: #2a2a1a; color: var(--yellow); }
+
+/* ── Layout ── */
+.container { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+.panel-full { grid-column: 1 / -1; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.panel h3 {
+  font-size: 14px; color: var(--text2); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--border); padding-bottom: 10px;
+}
+
+/* ── Form Elements ── */
+label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+input, select, textarea {
+  width: 100%; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; outline: none; transition: border .2s;
+}
+input:focus, select:focus { border-color: var(--accent); }
+textarea { resize: vertical; font-family: monospace; font-size: 12px; min-height: 80px; }
+
+button, .btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-secondary:hover { background: #3a3d47; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { filter: brightness(1.1); }
+.btn-success { background: var(--green); color: #000; }
+.btn-success:hover { filter: brightness(1.1); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.row { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; }
+.row > * { flex: 1; }
+
+/* ── QR Code ── */
+.qr-box { text-align: center; margin: 10px 0; }
+.qr-box img { width: 180px; height: 180px; border-radius: 8px; border: 2px solid var(--border); }
+.qr-box .qr-hint { font-size: 12px; color: var(--text2); margin-top: 8px; }
+
+/* ── SKU List ── */
+.sku-list { max-height: 200px; overflow-y: auto; margin-top: 8px; }
+.sku-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; margin: 4px 0; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border); cursor: pointer; transition: all .15s;
+}
+.sku-item:hover { border-color: var(--accent); }
+.sku-item.selected { border-color: var(--accent); background: #1a1520; }
+.sku-item .sku-price { color: var(--accent); font-weight: 600; }
+.sku-item .sku-stock { color: var(--text2); font-size: 12px; }
+
+/* ── Monitor ── */
+.monitor-status { display: flex; gap: 16px; align-items: center; }
+.monitor-indicator {
+  width: 12px; height: 12px; border-radius: 50%; animation: pulse 1.5s infinite;
+}
+.monitor-indicator.running { background: var(--green); animation-play-state: running; }
+.monitor-indicator.stopped { background: var(--text2); animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.monitor-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.stat-card {
+  padding: 12px; background: var(--bg); border-radius: 6px; text-align: center;
+}
+.stat-card .val { font-size: 24px; font-weight: 700; }
+.stat-card .lbl { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+.avail .val { color: var(--green); }
+.soldout .val { color: var(--red); }
+.waiting .val { color: var(--yellow); }
+
+/* ── Log ── */
+.log-panel { margin-top: 0; }
+.log-box {
+  height: 200px; overflow-y: auto; padding: 10px;
+  background: #0a0b10; border-radius: 6px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px; line-height: 1.7; color: #a0a4b8;
+}
+.log-box .log-info { color: #60a5fa; }
+.log-box .log-success { color: #4ade80; }
+.log-box .log-warning { color: #fbbf24; }
+.log-box .log-error { color: #f87171; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; top: 16px; right: 16px; z-index: 999;
+  padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  opacity: 0; transform: translateX(20px); transition: all .3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(0); }
+.toast-success { background: #1a3a24; color: var(--green); border: 1px solid #2a5a34; }
+.toast-error { background: #3a1a1a; color: var(--red); border: 1px solid #5a2a2a; }
+.toast-info { background: #1a2a3a; color: var(--blue); border: 1px solid #2a3a5a; }
+
+.order-result {
+  margin-top: 12px; padding: 12px; border-radius: 6px; font-weight: 600; display: none;
+}
+.order-result.success { background: #1a3a24; color: var(--green); display: block; }
+.order-result.fail { background: #3a1a1a; color: var(--red); display: block; }
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="logo">
+    <span class="dot"></span>
+    <span>Bilibili 抢票助手</span>
+  </div>
+  <div class="status">
+    <span>用户: <strong id="header-user">--</strong></span>
+    <span class="badge badge-logged-out" id="header-login-badge">未登录</span>
+    <span class="badge badge-stopped" id="header-monitor-badge">监控停止</span>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="container">
+
+  <!-- Left Column -->
+  <div>
+    <!-- Login Panel -->
+    <div class="panel" style="margin-bottom:16px">
+      <h3>账号登录</h3>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <button class="btn btn-primary" onclick="showQRCode()" style="flex:1">扫码登录</button>
+        <button class="btn btn-secondary" onclick="showCookieInput()" style="flex:1">Cookie 登录</button>
+      </div>
+      <div id="login-area">
+        <div id="cookie-area" style="display:none">
+          <label>粘贴 Cookie 字符串</label>
+          <textarea id="cookie-input" placeholder="从浏览器 F12 → Application → Cookies 复制全部 Cookie..."></textarea>
+          <div class="row"><button class="btn btn-primary" onclick="loginByCookie()">登录</button></div>
+        </div>
+        <div id="qr-area" style="display:none">
+          <div class="qr-box" id="qr-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Panel -->
+    <div class="panel">
+      <h3>抢票目标</h3>
+      <label>商品 ID</label>
+      <div class="row">
+        <input type="text" id="item-id" placeholder="例: 75736 (从 show.bilibili.com 商品页 URL 获取)">
+        <button class="btn btn-secondary" onclick="lookupItem()" style="flex:0 0 auto">查询</button>
+      </div>
+      <div id="item-info" style="display:none;margin-top:8px">
+        <div style="font-size:13px;color:var(--text2)">商品: <strong id="item-name" style="color:var(--text)"></strong></div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">选择 SKU (票档):</div>
+        <div class="sku-list" id="sku-list"></div>
+        <div id="screen-select-area" style="display:none;margin-top:8px">
+          <label>选择场次:</label>
+          <select id="screen-select"></select>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div><label>购买数量</label><input type="number" id="buy-count" value="1" min="1" max="4"></div>
+          <button class="btn btn-primary" onclick="saveConfig()" style="flex:0 0 auto;align-self:flex-end">保存配置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div>
+    <!-- Monitor Panel -->
+    <div class="panel" style="margin-bottom:16px">
+      <h3>监控 & 抢票</h3>
+      <div class="monitor-status">
+        <div class="monitor-indicator stopped" id="monitor-dot"></div>
+        <span id="monitor-text" style="font-size:14px">监控未启动</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-success" id="btn-start" onclick="startMonitor()">启动监控</button>
+          <button class="btn btn-danger" id="btn-stop" onclick="stopMonitor()" disabled>停止</button>
+        </div>
+      </div>
+      <div class="monitor-stats" id="monitor-stats">
+        <div class="stat-card"><div class="val" id="stat-poll">0</div><div class="lbl">轮询次数</div></div>
+        <div class="stat-card"><div class="val" id="stat-status">未知</div><div class="lbl">库存状态</div></div>
+        <div class="stat-card"><div class="val" id="stat-attempts">0</div><div class="lbl">下单尝试</div></div>
+        <div class="stat-card"><div class="val" id="stat-runtime">0s</div><div class="lbl">运行时间</div></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-secondary" onclick="manualOrder()">手动下单 (测试)</button>
+      </div>
+      <div class="order-result" id="order-result"></div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="panel log-panel">
+      <h3>运行日志</h3>
+      <div class="log-box" id="log-box">正在加载...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Toast ──
+function toast(msg, type) {
+  type = type || 'info';
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast toast-' + type + ' show';
+  setTimeout(function() { el.classList.remove('show'); }, 2500);
+}
+
+// ── API Helper ──
+async function api(url, method, data) {
+  var opts = { method: method || 'GET', headers: {} };
+  if (data) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(data);
+  }
+  var resp = await fetch(url, opts);
+  return resp.json();
+}
+
+// ── Global State ──
+var g = { itemId: '', skuId: '', screenId: '', count: 1, monitorPolling: false };
+
+// ── Init ──
+async function init() {
+  var s = await api('/api/status');
+  if (s.logged_in) {
+    document.getElementById('header-user').textContent = s.user.uname;
+    document.getElementById('header-login-badge').textContent = '已登录';
+    document.getElementById('header-login-badge').className = 'badge badge-logged-in';
+    document.getElementById('login-area').innerHTML = '<p style="color:var(--text2);font-size:13px">已登录: <strong style="color:var(--text)">' + s.user.uname + '</strong> (UID ' + s.user.mid + ')</p><button class="btn btn-secondary" onclick="location.reload()" style="margin-top:8px">切换账号</button>';
+  }
+  if (s.config.item_id) {
+    document.getElementById('item-id').value = s.config.item_id;
+    g.itemId = s.config.item_id;
+    g.skuId = s.config.sku_id;
+    g.screenId = s.config.screen_id;
+    g.count = s.config.count || 1;
+    document.getElementById('buy-count').value = g.count;
+  }
+  if (s.monitor_running) {
+    setMonitorUI(true);
+    g.monitorPolling = true;
+    pollMonitor();
+  }
+  updateLogs();
+  setInterval(updateLogs, 4000);
+}
+
+// ── Login ──
+function showQRCode() {
+  document.getElementById('cookie-area').style.display = 'none';
+  document.getElementById('qr-area').style.display = 'block';
+  fetchQRCode();
+}
+
+async function fetchQRCode() {
+  var r = await api('/api/login/qrcode', 'POST');
+  if (r.success) {
+    document.getElementById('qr-container').innerHTML = '<img src="' + r.qr_image + '" alt="QR Code"><div class="qr-hint">请使用 Bilibili App 扫描二维码</div>';
+    pollQRCode(r.qrcode_key);
+  } else {
+    toast(r.error, 'error');
+  }
+}
+
+async function pollQRCode(key) {
+  for (var i = 0; i < 120; i++) {
+    var r = await api('/api/login/qrcode/check', 'POST', { qrcode_key: key });
+    if (r.status === 'success') {
+      toast('登录成功! ' + r.user.uname, 'success');
+      setTimeout(function() { location.reload(); }, 1500);
+      return;
+    } else if (r.status === 'expired') {
+      toast('二维码已过期，请重新获取', 'error');
+      document.getElementById('qr-container').innerHTML = '<button class="btn btn-secondary" onclick="fetchQRCode()">重新获取</button>';
+      return;
+    } else if (r.status === 'waiting_confirm') {
+      document.getElementById('qr-container').querySelector('.qr-hint').textContent = '已扫码，请在手机上确认...';
+    }
+    await new Promise(function(r) { setTimeout(r, 1000); });
+  }
+  toast('登录超时', 'error');
+}
+
+function showCookieInput() {
+  document.getElementById('qr-area').style.display = 'none';
+  document.getElementById('cookie-area').style.display = 'block';
+}
+
+async function loginByCookie() {
+  var cookie = document.getElementById('cookie-input').value.trim();
+  if (!cookie) { toast('请输入 Cookie', 'error'); return; }
+  var r = await api('/api/login/cookie', 'POST', { cookie: cookie });
+  if (r.success) {
+    toast('登录成功! ' + r.user.uname, 'success');
+    setTimeout(function() { location.reload(); }, 1000);
+  } else {
+    toast(r.error, 'error');
+  }
+}
+
+// ── Item Lookup ──
+async function lookupItem() {
+  var id = document.getElementById('item-id').value.trim();
+  if (!id) { toast('请输入商品 ID', 'error'); return; }
+  var r = await api('/api/item/lookup', 'POST', { item_id: id });
+  if (!r.success) { toast(r.error, 'error'); return; }
+
+  g.itemId = id;
+  document.getElementById('item-info').style.display = 'block';
+  document.getElementById('item-name').textContent = r.item.name;
+
+  // SKU list
+  var html = '';
+  r.item.skus.forEach(function(s, i) {
+    html += '<div class="sku-item' + (s.sku_id === g.skuId ? ' selected' : '') + '" onclick="selectSku(\'' + s.sku_id + '\', this)" data-skuid="' + s.sku_id + '">';
+    html += '<span>' + s.name + '</span>';
+    html += '<span><span class="sku-price">¥' + s.price + '</span> <span class="sku-stock">库存: ' + s.stock + '</span></span>';
+    html += '</div>';
+  });
+  document.getElementById('sku-list').innerHTML = html;
+
+  // Screens
+  if (r.item.screens.length > 0) {
+    document.getElementById('screen-select-area').style.display = 'block';
+    var shtml = '<option value="">不指定场次</option>';
+    r.item.screens.forEach(function(s) {
+      shtml += '<option value="' + s.screen_id + '"' + (s.screen_id === g.screenId ? ' selected' : '') + '>' + s.name + '</option>';
+    });
+    document.getElementById('screen-select').innerHTML = shtml;
+  } else {
+    document.getElementById('screen-select-area').style.display = 'none';
+  }
+}
+
+function selectSku(skuId, el) {
+  document.querySelectorAll('.sku-item').forEach(function(e) { e.classList.remove('selected'); });
+  el.classList.add('selected');
+  g.skuId = skuId;
+}
+
+// ── Config ──
+async function saveConfig() {
+  g.count = parseInt(document.getElementById('buy-count').value) || 1;
+  g.screenId = document.getElementById('screen-select') ? document.getElementById('screen-select').value : '';
+  var cfg = { item_id: g.itemId, sku_id: g.skuId, screen_id: g.screenId, count: g.count };
+  var r = await api('/api/config', 'POST', cfg);
+  if (r.success) {
+    toast('配置已保存!', 'success');
+  }
+}
+
+// ── Monitor ──
+async function startMonitor() {
+  var r = await api('/api/monitor/start', 'POST');
+  if (r.success) {
+    toast('监控已启动', 'success');
+    setMonitorUI(true);
+    g.monitorPolling = true;
+    pollMonitor();
+  } else {
+    toast(r.error, 'error');
+  }
+}
+
+async function stopMonitor() {
+  var r = await api('/api/monitor/stop', 'POST');
+  if (r.success) {
+    toast('监控已停止', 'info');
+  }
+  setMonitorUI(false);
+  g.monitorPolling = false;
+}
+
+function setMonitorUI(running) {
+  document.getElementById('monitor-dot').className = 'monitor-indicator ' + (running ? 'running' : 'stopped');
+  document.getElementById('monitor-text').textContent = running ? '监控运行中...' : '监控未启动';
+  document.getElementById('btn-start').disabled = running;
+  document.getElementById('btn-stop').disabled = !running;
+  document.getElementById('header-monitor-badge').textContent = running ? '监控运行' : '监控停止';
+  document.getElementById('header-monitor-badge').className = running ? 'badge badge-running' : 'badge badge-stopped';
+}
+
+async function pollMonitor() {
+  while (g.monitorPolling) {
+    var r = await api('/api/monitor/status');
+    var s = r.stats;
+    document.getElementById('stat-poll').textContent = s.poll_count || 0;
+    document.getElementById('stat-status').textContent = statusLabel(s.status);
+    document.getElementById('stat-runtime').textContent = Math.round(s.elapsed_seconds || 0) + 's';
+    await new Promise(function(r) { setTimeout(r, 2000); });
+  }
+}
+
+function statusLabel(s) {
+  var map = { AVAILABLE: '有票!', NOT_ON_SALE: '未开售', SOLD_OUT: '已售罄', UNKNOWN: '未知', ERROR: '错误' };
+  return map[s] || s || '--';
+}
+
+// ── Order ──
+async function manualOrder() {
+  if (!confirm('确认立即下单购买？')) return;
+  var r = await api('/api/order/execute', 'POST');
+  var el = document.getElementById('order-result');
+  if (r.success) {
+    el.className = 'order-result success';
+    el.innerHTML = '🎉 下单成功！订单号: <strong>' + r.order_id + '</strong><br>请尽快前往 Bilibili 会员购完成支付';
+  } else {
+    el.className = 'order-result fail';
+    el.innerHTML = '下单失败: ' + r.message;
+  }
+}
+
+// ── Logs ──
+async function updateLogs() {
+  try {
+    var r = await api('/api/logs');
+    var box = document.getElementById('log-box');
+    var html = r.logs.map(function(l) {
+      var cls = '';
+      if (l.includes('[ERROR]') || l.includes('失败')) cls = 'log-error';
+      else if (l.includes('[WARNING]') || l.includes('412')) cls = 'log-warning';
+      else if (l.includes('成功') || l.includes('SUCCESS') || l.includes('登录')) cls = 'log-success';
+      else cls = 'log-info';
+      return '<span class="' + cls + '">' + escapeHtml(l) + '</span>';
+    }).join('<br>');
+    box.innerHTML = html;
+    box.scrollTop = box.scrollHeight;
+  } catch(e) {}
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Start ──
+init();
+</script>
+</body>
+</html>

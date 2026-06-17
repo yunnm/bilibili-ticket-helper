@@ -1,9 +1,10 @@
 """GitHub Device Flow 认证 + 推送"""
 import requests, json, time, os, sys, base64
 
-REPO_OWNER = "yunnm"
-REPO_NAME = "bilibili-ticket-helper"
-CLIENT_ID = "178c6fc778ccc68e1d6a"
+# 从环境变量读取敏感信息，未设置则使用占位符
+REPO_OWNER = os.environ.get("GITHUB_REPO_OWNER", "your-username")
+REPO_NAME = os.environ.get("GITHUB_REPO_NAME", "your-repo")
+CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "your-client-id")
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def get_token():
